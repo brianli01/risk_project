@@ -58,7 +58,6 @@ def cluster_vol(df):
 df_vol       = compute_vol(df)
 df_clustered = cluster_vol(df_vol)
 
-print(df_clustered)
 vc_df = pd.read_csv("vol_clusters.csv")
 
 def mkov(df):
@@ -75,4 +74,5 @@ def mkov(df):
     return prob_matrix
 
 
-print(mkov(vc_df))
+pmatrix = mkov(vc_df)
+print(pmatrix)
