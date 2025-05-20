@@ -39,7 +39,7 @@ def cluster_vol(df):
     X_scaled   = scaler.fit_transform(X)
 
     # k-means
-    km        = KMeans(n_clusters=3, random_state=42)
+    km        = KMeans(n_clusters=5, random_state=42)
     labels    = km.fit_predict(X_scaled)
     centroids = km.cluster_centers_
 
@@ -48,8 +48,10 @@ def cluster_vol(df):
     order  = np.argsort(scores)    # [idx_low, idx_mod, idx_high]
     label_map = {
         order[0]: 'low',
-        order[1]: 'moderate',
-        order[2]: 'high'
+        order [1]: 'low-mod',
+        order[2]: 'moderate',
+        order[3]: 'mod-high',
+        order[4]: 'high'
     }
     df.loc[df[features].dropna().index, 'vol_cluster'] = [label_map[l] for l in labels]
     df[['Date','vol_cluster']].to_csv('vol_clusters.csv', index=False)
