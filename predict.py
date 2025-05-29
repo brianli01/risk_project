@@ -7,7 +7,7 @@ import xgboost as xgb
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error
 
-# from markov import pmatrix    # assume pmatrix(series) → (state_probs, trans_mat)
+from markov import pmatrix    # assume pmatrix(series) → (state_probs, trans_mat)
 from data import df         
 
 # Drop rows with NaNs introduced by feature engineering
