@@ -68,8 +68,8 @@ print("6) Hyperparameter tuning on baseline features...")
 X_baseline_dev = df_dev_clean[FEATURES].values
 tscv = TimeSeriesSplit(n_splits=5)
 param_grid = {
-    "n_estimators":  [100, 200],
-    "max_depth":     [3, 4],
+    "n_estimators": [100, 200],
+    "max_depth": [3, 4],
     "learning_rate": [0.01, 0.05],
 }
 base_xgb_model = xgb.XGBRegressor(objective="reg:squarederror", random_state=42, n_jobs=-1)
@@ -84,14 +84,14 @@ search = GridSearchCV(
 search.fit(X_baseline_dev, y_dev)
 best_params = search.best_params_
 best_dev_rmse_baseline = np.sqrt(-search.best_score_)
-print(f"   Best Dev RMSE (baseline features): {best_dev_rmse_baseline:.6f} with params {best_params}")
+print(f"Best Dev RMSE (baseline features): {best_dev_rmse_baseline:.6f} with params {best_params}")
 
 # Ablation study
 print("7) Ablation Study — evaluating feature sets:")
 scenarios = {
-    "Baseline":        FEATURES,
-    "KMeans Markov":   FEATURES + KM_FEATS,
-    "GMM Markov":      FEATURES + GMM_FEATS,
+    "Baseline": FEATURES,
+    "KMeans Markov": FEATURES + KM_FEATS,
+    "GMM Markov": FEATURES + GMM_FEATS,
     "Combined Markov": FEATURES + KM_FEATS + GMM_FEATS,
 }
 ablation_results = {}
@@ -114,7 +114,7 @@ for name, feat_list in scenarios.items():
     trained_models[name] = model
     model_predictions[name] = y_pred
     model_feature_lists[name] = feat_list
-    print(f"   Scenario '{name}' Test RMSE: {rmse:.6f}")
+    print(f"Scenario '{name}' Test RMSE: {rmse:.6f}")
 
 # Select best model
 best_scenario_name = min(ablation_results, key=ablation_results.get)
@@ -122,7 +122,7 @@ best_model_overall = trained_models[best_scenario_name]
 y_pred_best_global = model_predictions[best_scenario_name]
 rmse_best_global = ablation_results[best_scenario_name]
 best_feature_list = model_feature_lists[best_scenario_name]
-print(f"\n8) Best model from ablation: '{best_scenario_name}' with Test RMSE: {rmse_best_global:.6f}")
+print(f"\nBest model from ablation: '{best_scenario_name}' with Test RMSE: {rmse_best_global:.6f}")
 
 # Diagnostics Section
 # Train per‐KMeans-regime models
@@ -142,7 +142,7 @@ for state in np.unique(reg_dev_km):
         m.fit(X_dev_best_features[mask], y_dev[mask])
         models_reg_km[state] = m
     else:
-        print(f"   Skipping KMeans regime '{state}' for per-regime model training: no data in dev set.")
+        print(f"Skipping KMeans regime '{state}' for per-regime model training: no data in dev set.")
 reg_test_km = df_test_clean["vol_cluster"].values
 X_test_best_features = df_test_clean[best_feature_list].values
 y_pred_reg_km = np.zeros_like(y_test, dtype=float)
@@ -154,22 +154,22 @@ if per_km_regime_models_trained:
             y_pred_reg_km[i] = models_reg_km[r_test_km].predict(X_test_best_features[i].reshape(1, -1))[0]
             valid_predictions_count_km +=1
         else:
-            print(f"   Warning: KMeans Regime '{r_test_km}' in test set not found. Using global prediction for instance {i}.")
+            print(f"Warning: KMeans Regime '{r_test_km}' in test set not found. Using global prediction for instance {i}.")
             y_pred_reg_km[i] = y_pred_best_global[i]
     if valid_predictions_count_km > 0:
         rmse_reg_km = np.sqrt(mean_squared_error(y_test, y_pred_reg_km))
-        print(f"   Per-KMeans-Regime Test RMSE (using best features): {rmse_reg_km:.6f}")
+        print(f"Per-KMeans-Regime Test RMSE (using best features): {rmse_reg_km:.6f}")
         # Ensemble average (KMeans)
         print("\n10a) Ensemble average of best global and per-KMeans-regime models...")
         y_pred_ens_km = 0.5 * (y_pred_best_global + y_pred_reg_km)
         rmse_ens_km = np.sqrt(mean_squared_error(y_test, y_pred_ens_km))
-        print(f"    Ensemble (KMeans-Regime) Test RMSE: {rmse_ens_km:.6f}")
+        print(f"Ensemble (KMeans-Regime) Test RMSE: {rmse_ens_km:.6f}")
     else:
-        print("   Skipping per-KMeans-Regime RMSE and Ensemble: No valid per-KMeans-regime predictions made.")
+        print("Skipping per-KMeans-Regime RMSE and Ensemble: No valid per-KMeans-regime predictions made.")
         rmse_reg_km = np.nan
         rmse_ens_km = np.nan
 else:
-    print("   Skipping per-KMeans-Regime models, RMSE, and Ensemble: No per-KMeans-regime models were trained.")
+    print("Skipping per-KMeans-Regime models, RMSE, and Ensemble: No per-KMeans-regime models were trained.")
     rmse_reg_km = np.nan
     rmse_ens_km = np.nan
 
@@ -189,7 +189,7 @@ for state_val in np.unique(reg_dev_gmm):
         m.fit(X_dev_best_features[mask], y_dev[mask])
         models_reg_gmm[state_val] = m
     else:
-        print(f"   Skipping GMM regime {state_val} for per-regime model training: no data in dev set.")
+        print(f"Skipping GMM regime {state_val} for per-regime model training: no data in dev set.")
 reg_test_gmm = df_test_clean["vol_state"].values
 y_pred_reg_gmm = np.zeros_like(y_test, dtype=float)
 valid_predictions_count_gmm = 0
@@ -200,22 +200,22 @@ if per_gmm_regime_models_trained:
             y_pred_reg_gmm[i] = models_reg_gmm[r_test_gmm].predict(X_test_best_features[i].reshape(1, -1))[0]
             valid_predictions_count_gmm +=1
         else:
-            print(f"   Warning: GMM Regime {r_test_gmm} in test set not found. Using global prediction for instance {i}.")
+            print(f"Warning: GMM Regime {r_test_gmm} in test set not found. Using global prediction for instance {i}.")
             y_pred_reg_gmm[i] = y_pred_best_global[i]
     if valid_predictions_count_gmm > 0:
         rmse_reg_gmm = np.sqrt(mean_squared_error(y_test, y_pred_reg_gmm))
-        print(f"   Per-GMM-Regime Test RMSE (using best features): {rmse_reg_gmm:.6f}")
+        print(f"Per-GMM-Regime Test RMSE (using best features): {rmse_reg_gmm:.6f}")
         # Ensemble average (GMM)
         print("\n10c) Ensemble average of best global and per-GMM-regime models...")
         y_pred_ens_gmm = 0.5 * (y_pred_best_global + y_pred_reg_gmm)
         rmse_ens_gmm = np.sqrt(mean_squared_error(y_test, y_pred_ens_gmm))
-        print(f"    Ensemble (GMM-Regime) Test RMSE: {rmse_ens_gmm:.6f}")
+        print(f"Ensemble (GMM-Regime) Test RMSE: {rmse_ens_gmm:.6f}")
     else:
-        print("   Skipping per-GMM-Regime RMSE and Ensemble: No valid per-GMM-regime predictions made.")
+        print("Skipping per-GMM-Regime RMSE and Ensemble: No valid per-GMM-regime predictions made.")
         rmse_reg_gmm = np.nan
         rmse_ens_gmm = np.nan
 else:
-    print("   Skipping per-GMM-Regime models, RMSE, and Ensemble: No per-GMM-regime models were trained.")
+    print("Skipping per-GMM-Regime models, RMSE, and Ensemble: No per-GMM-regime models were trained.")
     rmse_reg_gmm = np.nan
     rmse_ens_gmm = np.nan
 
@@ -232,11 +232,11 @@ try:
         ax.set_title(f"Top 10 Features (Best Global Model: '{best_scenario_name}')")
         plt.tight_layout()
         plt.savefig(f"feature_importance_{best_scenario_name.replace(' ', '_').lower()}.png")
-        print(f"    Feature importance plot saved to feature_importance_{best_scenario_name.replace(' ', '_').lower()}.png")
+        print(f"Feature importance plot saved to feature_importance_{best_scenario_name.replace(' ', '_').lower()}.png")
     else:
-        print("    Could not generate feature importances (model might be trivial or features had no gain).")
+        print("Could not generate feature importances (model might be trivial or features had no gain).")
 except Exception as e:
-    print(f"    Error generating feature importance plot: {e}")
+    print(f"Error generating feature importance plot: {e}")
 
 # Additional diagnostics
 print("\n12) Additional diagnostics for the best global model...")
@@ -256,9 +256,9 @@ if len(unique_km_regimes_in_test) > 0:
     for state in unique_km_regimes_in_test:
         idx = (reg_test_km_values == state)
         rmse_state = np.sqrt(mean_squared_error(y_test[idx], y_pred_best_global[idx]))
-        print(f"     KMeans Regime '{state}': {rmse_state:.6f} (n={np.sum(idx)})")
+        print(f"KMeans Regime '{state}': {rmse_state:.6f} (n={np.sum(idx)})")
 else:
-    print("     No valid (non-NaN) KMeans regimes found in the test set for regime-specific RMSE.")
+    print("No valid (non-NaN) KMeans regimes found in the test set for regime-specific RMSE.")
 # GMM Regime‐Specific Test RMSE
 print("12c) GMM Regime-specific Test RMSE (for the best global model predictions):")
 reg_test_gmm_values = df_test_clean["vol_state"].values
@@ -267,9 +267,9 @@ if len(unique_gmm_regimes_in_test) > 0:
     for state_val in unique_gmm_regimes_in_test:
         idx = (reg_test_gmm_values == state_val)
         rmse_state_gmm = np.sqrt(mean_squared_error(y_test[idx], y_pred_best_global[idx]))
-        print(f"     GMM Regime {int(state_val)}: {rmse_state_gmm:.6f} (n={np.sum(idx)})")
+        print(f"GMM Regime {int(state_val)}: {rmse_state_gmm:.6f} (n={np.sum(idx)})")
 else:
-    print("     No valid (non-NaN) GMM regimes found in the test set for regime-specific RMSE.")
+    print("No valid (non-NaN) GMM regimes found in the test set for regime-specific RMSE.")
 
 # Diebold–Mariano test
 print("\n13) Diebold–Mariano test (best global model vs. naive baseline)...")
@@ -300,20 +300,20 @@ if len(naive_forecast) == len(y_test):
     se_naive = (y_test - naive_forecast)**2
     dm_stat, dm_p, dm_msg = diebold_mariano(se_model, se_naive)
     if dm_msg:
-        print(f"    {dm_msg}")
+        print(f"{dm_msg}")
     if pd.notna(dm_stat) and pd.notna(dm_p):
-        print(f"    Diebold-Mariano DM stat: {dm_stat:.3f}, p-value: {dm_p:.3f}")
+        print(f"Diebold-Mariano DM stat: {dm_stat:.3f}, p-value: {dm_p:.3f}")
         if dm_p < 0.05:
             if dm_stat < 0:
-                print("    Interpretation: Best model is significantly better than naive baseline.")
+                print("Interpretation: Best model is significantly better than naive baseline.")
             elif dm_stat > 0:
-                print("    Interpretation: Naive baseline is significantly better than best model.")
+                print("Interpretation: Naive baseline is significantly better than best model.")
             else:
-                 print("    Interpretation: No significant difference detected (DM stat is effectively 0).")
+                 print("Interpretation: No significant difference detected (DM stat is effectively 0).")
         else:
-            print("    Interpretation: No significant difference detected between best model and naive baseline (p >= 0.05).")
+            print("Interpretation: No significant difference detected between best model and naive baseline (p >= 0.05).")
     elif not dm_msg:
-        print(f"    Diebold-Mariano test could not be computed reliably.")
+        print(f"Diebold-Mariano test could not be computed reliably.")
 else:
-    print("    Could not run Diebold-Mariano test: length mismatch between naive forecast and y_test.")
+    print("Could not run Diebold-Mariano test: length mismatch between naive forecast and y_test.")
 print("\nDone.")
