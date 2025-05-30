@@ -1,6 +1,11 @@
+# data.py
+
 import pandas as pd
 import numpy as np
+import pickle
+from pathlib import Path
 
+# ——————— Helper functions ———————
 
 def load_spy_data(path: str) -> pd.DataFrame:
     """
@@ -30,8 +35,6 @@ def make_price_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Generate core price-based features including log returns,
     open-close range, high-low range, and overnight gap.
-
-    Returns a new DataFrame with added columns.
     """
     df = df.copy()
     df["daily_return"]     = np.log(df["Price"] / df["Price"].shift(1))
@@ -65,8 +68,8 @@ def make_rolling_features(df: pd.DataFrame, windows=None) -> pd.DataFrame:
 
     df = df.copy()
     for w in windows:
-        df[f"roll_ret_std_{w}"] = df["daily_return"].rolling(w).std()
-        df[f"price_ma_{w}"]    = df["Price"].rolling(w).mean()
+        df[f"roll_ret_std_{w}"]  = df["daily_return"].rolling(w).std()
+        df[f"price_ma_{w}"]      = df["Price"].rolling(w).mean()
         df[f"high_roll_max_{w}"] = df["High"].rolling(w).max()
         df[f"low_roll_min_{w}"]  = df["Low"].rolling(w).min()
     # Lagged returns
@@ -83,7 +86,7 @@ def make_volume_features(df: pd.DataFrame, window: int = 5) -> pd.DataFrame:
         window: rolling window size for volume average.
     """
     df = df.copy()
-    df["vol_roll_mean"]     = df["Volume"].rolling(window).mean()
+    df["vol_roll_mean"]    = df["Volume"].rolling(window).mean()
     df["vol_change_ratio"] = df["Volume"] / df["Volume"].shift(1)
     return df
 
@@ -135,9 +138,33 @@ def assemble_features(path: str):
     return df, CORE_FEATURES, EXTRA_FEATURES, FEATURES
 
 
+# ——————— Caching logic at import time ———————
+
+CACHE = Path("cache/data_features.pkl")
+CSV   = "SPY ETF Stock Price History 93-25.csv"
+
+if CACHE.exists():
+    # load precomputed features
+    df, CORE_FEATURES, EXTRA_FEATURES, FEATURES = pickle.load(open(CACHE, "rb"))
+else:
+    # compute and then cache
+    df, CORE_FEATURES, EXTRA_FEATURES, FEATURES = assemble_features(CSV)
+    CACHE.parent.mkdir(exist_ok=True)
+    with open(CACHE, "wb") as f:
+        pickle.dump((df, CORE_FEATURES, EXTRA_FEATURES, FEATURES), f)
+
+
+# ——————— Module exports ———————
+
+__all__ = [
+    "load_spy_data", "make_price_features", "make_temporal_features",
+    "make_rolling_features", "make_volume_features", "assemble_features",
+    "df", "CORE_FEATURES", "EXTRA_FEATURES", "FEATURES"
+]
+
+
+# ——————— Script entrypoint ———————
+
 if __name__ == "__main__":
-    df_all, CORE_FEATURES, EXTRA_FEATURES, FEATURES = assemble_features(
-        "SPY ETF Stock Price History 93-25.csv"
-    )
-    print("Features assembled. Sample data:")
-    print(df_all[FEATURES + ['rv_next_1', 'rv_next_5']].head())
+    print("Data features loaded. Here's a sample:")
+    print(df[FEATURES + ["rv_next_1", "rv_next_5"]].head())
