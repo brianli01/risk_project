@@ -21,10 +21,10 @@ def compute_vol(df: pd.DataFrame) -> pd.DataFrame:
     windows = [1, 5, 21, 252]
     trading_days = 252
     for w in windows:
-        s      = (df['log_ret']**2).rolling(w).sum()
-        rv     = np.sqrt(s)
+        s = (df['log_ret']**2).rolling(w).sum()
+        rv = np.sqrt(s)
         rv_ann = np.sqrt(trading_days / w) * rv
-        df[f'rv_{w}d']     = rv
+        df[f'rv_{w}d'] = rv
         df[f'rv_{w}d_ann'] = rv_ann
     return df.dropna(subset=[f'rv_{w}d_ann' for w in windows])
 
@@ -34,13 +34,13 @@ def cluster_vol(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
     feats = ['rv_1d_ann','rv_5d_ann','rv_21d_ann','rv_252d_ann']
-    X    = df[feats].dropna().values
-    Xs   = StandardScaler().fit_transform(X)
-    km         = KMeans(n_clusters=3, random_state=42, n_init=10) # Added n_init
-    labels     = km.fit_predict(Xs)
-    centroids  = km.cluster_centers_
-    order      = np.argsort(centroids.mean(axis=1))
-    label_map  = { order[0]:'low', order[1]:'moderate', order[2]:'high' }
+    X = df[feats].dropna().values
+    Xs = StandardScaler().fit_transform(X)
+    km = KMeans(n_clusters=3, random_state=42, n_init=10)
+    labels = km.fit_predict(Xs)
+    centroids = km.cluster_centers_
+    order = np.argsort(centroids.mean(axis=1))
+    label_map = {order[0]:'low', order[1]:'moderate', order[2]:'high'}
     idxs = df[feats].dropna().index
     df.loc[idxs, 'vol_cluster'] = [label_map[l] for l in labels]
     return df
@@ -58,15 +58,14 @@ def mkov(df: pd.DataFrame) -> pd.DataFrame:
 # Caching logic
 CACHE = Path("cache/markov_km.pkl")
 DATA_CSV = "SPY ETF Stock Price History 93-25.csv"
-
 if CACHE.exists():
     df_km, pmatrix = pickle.load(open(CACHE, "rb"))
 else:
-    df_raw    = pd.read_csv(DATA_CSV, parse_dates=["Date"])
+    df_raw = pd.read_csv(DATA_CSV, parse_dates=["Date"])
     df_sorted = df_raw.sort_values("Date").reset_index(drop=True)
-    df_vol    = compute_vol(df_sorted)
-    df_km     = cluster_vol(df_vol)
-    pmatrix   = mkov(df_km)
+    df_vol = compute_vol(df_sorted)
+    df_km = cluster_vol(df_vol)
+    pmatrix = mkov(df_km)
     CACHE.parent.mkdir(parents=True, exist_ok=True)
     pickle.dump((df_km, pmatrix), open(CACHE, "wb"))
 
