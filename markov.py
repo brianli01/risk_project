@@ -1,3 +1,9 @@
+"""
+markov_km.py
+
+Functions for computing volatility regimes using KMeans clustering,
+hard clustering into discrete states, and building a Markov transition matrix.
+"""
 import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
@@ -5,8 +11,7 @@ from sklearn.preprocessing import StandardScaler
 import pickle
 from pathlib import Path
 
-# ——————— Helper functions ———————
-
+# Helper functions
 def compute_vol(df: pd.DataFrame) -> pd.DataFrame:
     """
     Compute realized and annualized volatility over fixed windows.
@@ -23,7 +28,6 @@ def compute_vol(df: pd.DataFrame) -> pd.DataFrame:
         df[f'rv_{w}d_ann'] = rv_ann
     return df.dropna(subset=[f'rv_{w}d_ann' for w in windows])
 
-
 def cluster_vol(df: pd.DataFrame) -> pd.DataFrame:
     """
     Hard-cluster annualized vol into low/moderate/high regimes via KMeans.
@@ -32,17 +36,14 @@ def cluster_vol(df: pd.DataFrame) -> pd.DataFrame:
     feats = ['rv_1d_ann','rv_5d_ann','rv_21d_ann','rv_252d_ann']
     X    = df[feats].dropna().values
     Xs   = StandardScaler().fit_transform(X)
-
-    km         = KMeans(n_clusters=3, random_state=42)
+    km         = KMeans(n_clusters=3, random_state=42, n_init=10) # Added n_init
     labels     = km.fit_predict(Xs)
     centroids  = km.cluster_centers_
     order      = np.argsort(centroids.mean(axis=1))
     label_map  = { order[0]:'low', order[1]:'moderate', order[2]:'high' }
-
     idxs = df[feats].dropna().index
     df.loc[idxs, 'vol_cluster'] = [label_map[l] for l in labels]
     return df
-
 
 def mkov(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -54,33 +55,25 @@ def mkov(df: pd.DataFrame) -> pd.DataFrame:
     counts = pd.crosstab(trans['vol_cluster'], trans['next_cluster'])
     return counts.div(counts.sum(axis=1), axis=0)
 
-
-# ——————— Caching logic ———————
-
+# Caching logic
 CACHE = Path("cache/markov_km.pkl")
 DATA_CSV = "SPY ETF Stock Price History 93-25.csv"
 
 if CACHE.exists():
-    # load precomputed regimes + transition matrix
     df_km, pmatrix = pickle.load(open(CACHE, "rb"))
 else:
-    # compute and then cache
     df_raw    = pd.read_csv(DATA_CSV, parse_dates=["Date"])
     df_sorted = df_raw.sort_values("Date").reset_index(drop=True)
     df_vol    = compute_vol(df_sorted)
     df_km     = cluster_vol(df_vol)
     pmatrix   = mkov(df_km)
-    CACHE.parent.mkdir(exist_ok=True)  # ensure cache/ exists
+    CACHE.parent.mkdir(parents=True, exist_ok=True)
     pickle.dump((df_km, pmatrix), open(CACHE, "wb"))
 
-
-# ——————— Module exports ———————
-
+# Module exports
 __all__ = ["compute_vol", "cluster_vol", "mkov", "df_km", "pmatrix"]
 
-
-# ——————— Script entrypoint ———————
-
+# Script entrypoint
 if __name__ == "__main__":
     print("KMeans volatility regimes and transition matrix:")
     print(pmatrix)

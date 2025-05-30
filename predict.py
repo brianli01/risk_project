@@ -1,5 +1,9 @@
-# predict_merged.py
-# Full ML pipeline with ablation study, then diagnostics on the best model
+"""
+predict_merged.py
+
+Performs a full machine learning pipeline including data preparation,
+ablation studies for feature selection, model training, and diagnostic evaluations.
+"""
 import pandas as pd
 import pickle
 import numpy as np
@@ -10,10 +14,10 @@ from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 from sklearn.metrics import mean_squared_error, mean_absolute_error # MAE kept from original script 1
 from scipy import stats
 
-# 0) Setup Cache Path -----------------------------------------------------------
+# 0) Setup Cache Path
 CACHE = Path("cache")
 
-# 1) Load cached data & regimes ------------------------------------------------
+# 1) Load cached data & regimes
 print("1) Loading cached data & regimes...")
 # daily features + target
 with open(CACHE / "data_features.pkl", "rb") as f:
@@ -27,14 +31,14 @@ with open(CACHE / "markov_km.pkl", "rb") as f:
 with open(CACHE / "markov_gmm.pkl", "rb") as f:
     df_gmm, pmatrix_gmm = pickle.load(f)
 
-# 2) Merge regimes into main DataFrame ------------------------------------------
+# 2) Merge regimes into main DataFrame
 print("2) Merging regimes...")
 df_all = df.copy()
 df_all = df_all.merge(df_km[["Date", "vol_cluster"]], on="Date", how="left")
 df_all = df_all.merge(df_gmm[["Date", "vol_state"]], on="Date", how="left")
 
 
-# 3) Build KMeans & GMM transition‐prob features ------------------------------
+# 3) Build KMeans & GMM transition‐prob features
 print("3) Building transition-probability features...")
 KM_FEATS = []
 for state in pmatrix_km.columns:
@@ -55,7 +59,7 @@ for target_state_name in pmatrix_gmm.columns:
     df_all[col] = df_all["vol_state_str_label"].map(pmatrix_gmm[target_state_name])
     GMM_FEATS.append(col)
 
-# 4) Final feature list & clean based on ALL potential features & necessary columns --
+# 4) Final feature list & clean data
 print("4) Preparing and cleaning data for consistent splitting...")
 ALL_MODEL_FEATURES = FEATURES + KM_FEATS + GMM_FEATS # All features that could be used by any model
 # Columns needed for target, diagnostics, regime definitions, and all model features
@@ -63,7 +67,7 @@ ESSENTIAL_COLUMNS = ["rv_next_1", "daily_return", "vol_cluster", "vol_state"]
 df_clean = df_all.dropna(subset=ESSENTIAL_COLUMNS + ALL_MODEL_FEATURES)
 
 
-# 5) Build arrays & time‐ordered split (common for all scenarios) --------------
+# 5) Build arrays & time‐ordered split
 print("5) Building arrays & time-ordered split...")
 y_full = df_clean["rv_next_1"].values
 
@@ -76,7 +80,7 @@ y_dev, y_test = y_full[:split_idx], y_full[split_idx:]
 df_dev_clean = df_clean.iloc[:split_idx]
 df_test_clean = df_clean.iloc[split_idx:]
 
-# 6) Hyperparameter tuning on development set (using baseline features only) ---
+# 6) Hyperparameter tuning
 print("6) Hyperparameter tuning on baseline features...")
 X_baseline_dev = df_dev_clean[FEATURES].values
 
@@ -100,7 +104,7 @@ best_params = search.best_params_
 best_dev_rmse_baseline = np.sqrt(-search.best_score_)
 print(f"   Best Dev RMSE (baseline features): {best_dev_rmse_baseline:.6f} with params {best_params}")
 
-# 7) Ablation study: evaluate four feature‐sets -------------------------------
+# 7) Ablation study
 print("7) Ablation Study — evaluating feature sets:")
 scenarios = {
     "Baseline":        FEATURES,
@@ -133,7 +137,7 @@ for name, feat_list in scenarios.items():
     model_feature_lists[name] = feat_list
     print(f"   Scenario '{name}' Test RMSE: {rmse:.6f}")
 
-# 8) Select best model from ablation study ------------------------------------
+# 8) Select best model
 best_scenario_name = min(ablation_results, key=ablation_results.get)
 best_model_overall = trained_models[best_scenario_name]
 y_pred_best_global = model_predictions[best_scenario_name] 
@@ -142,9 +146,9 @@ best_feature_list = model_feature_lists[best_scenario_name]
 
 print(f"\n8) Best model from ablation: '{best_scenario_name}' with Test RMSE: {rmse_best_global:.6f}")
 
-# --- Start of Diagnostics Section (adapted from script 1, using the best model) ---
+# --- Start of Diagnostics Section ---
 
-# 9) Train per‐KMeans-regime models (using best feature set) ------------------
+# 9) Train per‐KMeans-regime models
 print("\n9) Training per-KMeans-regime models using best feature set...")
 models_reg_km = {}
 reg_dev_km = df_dev_clean["vol_cluster"].values 
@@ -182,7 +186,7 @@ if per_km_regime_models_trained:
         rmse_reg_km = np.sqrt(mean_squared_error(y_test, y_pred_reg_km))
         print(f"   Per-KMeans-Regime Test RMSE (using best features): {rmse_reg_km:.6f}")
 
-        # 10a) Ensemble average (best global + per-KMeans-regime) ----------------
+        # 10a) Ensemble average (KMeans)
         print("\n10a) Ensemble average of best global and per-KMeans-regime models...")
         y_pred_ens_km = 0.5 * (y_pred_best_global + y_pred_reg_km)
         rmse_ens_km = np.sqrt(mean_squared_error(y_test, y_pred_ens_km))
@@ -196,7 +200,7 @@ else:
     rmse_reg_km = np.nan
     rmse_ens_km = np.nan
 
-# 10b) Train Per-GMM-Regime Models (using best feature set) --------------------
+# 10b) Train Per-GMM-Regime Models
 print("\n10b) Training per-GMM-regime models using best feature set...")
 models_reg_gmm = {}
 reg_dev_gmm = df_dev_clean["vol_state"].values # Integer GMM states, should be clean of NaNs
@@ -232,7 +236,7 @@ if per_gmm_regime_models_trained:
         rmse_reg_gmm = np.sqrt(mean_squared_error(y_test, y_pred_reg_gmm))
         print(f"   Per-GMM-Regime Test RMSE (using best features): {rmse_reg_gmm:.6f}")
 
-        # 10c) Ensemble average (best global + per-GMM-regime) --------------------
+        # 10c) Ensemble average (GMM)
         print("\n10c) Ensemble average of best global and per-GMM-regime models...")
         y_pred_ens_gmm = 0.5 * (y_pred_best_global + y_pred_reg_gmm)
         rmse_ens_gmm = np.sqrt(mean_squared_error(y_test, y_pred_ens_gmm))
@@ -246,7 +250,7 @@ else:
     rmse_reg_gmm = np.nan
     rmse_ens_gmm = np.nan
 
-# 11) Feature‐importance plot (for the best global model) ---------------------
+# 11) Feature‐importance plot
 # This section remains the same
 print("\n11) Generating feature importance plot for the best global model...")
 try:
@@ -266,9 +270,9 @@ try:
 except Exception as e:
     print(f"    Error generating feature importance plot: {e}")
 
-# 12) Additional diagnostics (for the best global model) ----------------------
+# 12) Additional diagnostics
 print("\n12) Additional diagnostics for the best global model...")
-# 12a) Tail performance (90th percentile) on hold‐out
+# 12a) Tail performance
 # This section remains the same
 thresh = np.percentile(y_test, 90)
 mask_tail = y_test >= thresh
@@ -278,7 +282,7 @@ if np.sum(mask_tail) > 0:
 else:
     print("12a) Not enough samples in the tail (90th pct) to calculate Tail RMSE.")
 
-# 12b) KMeans Regime‐specific Test RMSE (for the best global model predictions)
+# 12b) KMeans Regime‐specific Test RMSE
 # This section uses your improved logic
 print("12b) KMeans Regime-specific Test RMSE (for the best global model predictions):")
 reg_test_km_values = df_test_clean["vol_cluster"].values 
@@ -292,13 +296,12 @@ if len(unique_km_regimes_in_test) > 0:
 else:
     print("     No valid (non-NaN) KMeans regimes found in the test set to calculate regime-specific RMSE.")
 
-# 12c) GMM Regime‐Specific Test RMSE (for the best global model predictions) --- NEW
+# 12c) GMM Regime‐Specific Test RMSE
 print("12c) GMM Regime-specific Test RMSE (for the best global model predictions):")
 reg_test_gmm_values = df_test_clean["vol_state"].values # Integer GMM states, should be clean of NaNs
 
 # Get unique non-NaN GMM regime states present in the test set
-# (though df_test_clean["vol_state"] should be NaN-free due to earlier comprehensive dropna)
-unique_gmm_regimes_in_test = pd.Series(reg_test_gmm_values).dropna().unique() # .astype(int) if they are floats after dropna().unique()
+unique_gmm_regimes_in_test = pd.Series(reg_test_gmm_values).dropna().unique() 
 
 if len(unique_gmm_regimes_in_test) > 0:
     for state_val in unique_gmm_regimes_in_test:
@@ -309,10 +312,14 @@ else:
     print("     No valid (non-NaN) GMM regimes found in the test set to calculate regime-specific RMSE.")
 
 
-# 13) Diebold–Mariano test (best global model vs. naive baseline) -------------
+# 13) Diebold–Mariano test
 # This section remains the same
 print("\n13) Diebold–Mariano test (best global model vs. naive baseline)...")
 def diebold_mariano(loss1, loss2):
+    """
+    Compares two sets of forecast losses using the Diebold-Mariano test.
+    Helps determine if one forecast is significantly better than another.
+    """
     d = loss1 - loss2
     T = len(d)
     if T == 0:
