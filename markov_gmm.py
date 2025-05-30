@@ -11,7 +11,6 @@ from sklearn.mixture import GaussianMixture
 from sklearn.metrics import silhouette_score
 import pickle
 from pathlib import Path
-
 # ——————— Helper functions ———————
 
 def compute_vol(df: pd.DataFrame,
@@ -64,10 +63,19 @@ def cluster_vol_gmm(df: pd.DataFrame,
     df_vol = compute_vol(df, windows)
     feats = [f'rv_{w}d_ann' for w in windows]
     X = df_vol[feats].values
-    Xs = StandardScaler().fit_transform(X)
+    scaler = StandardScaler()
+    Xs = scaler.fit_transform(X)
 
     gm = GaussianMixture(n_components=n_components, random_state=42)
     gm.fit(Xs)
+    original_scale_means = scaler.inverse_transform(gm.means_)
+    print(f"\n--- GMM Component Characteristics (Original Scale) ---")
+    feature_names = feats
+    for i in range(n_components):
+        print(f"Component {i} (maps to vol_state={i}, and likely gamma_{i}):")
+        for feature_idx, feature_name in enumerate(feature_names):
+            print(f"  Mean {feature_name}: {original_scale_means[i, feature_idx]:.6f}")
+    print(f"-----------------------------------------------------\n")
     proba = gm.predict_proba(Xs)
     labels = gm.predict(Xs)
 
